@@ -38,12 +38,10 @@ int main(int argc, char *argv[])
 
 
 
-#ifdef TEST_FPS
 // Timestamp to check FPS
 double lastTime = static_cast<double>(getSteadyTimestamp())/1e9;
 // Frame timestamp to check FPS
 uint64_t lastFrameTs = 0;
-#endif
 
 // Infinite video grabbing loop
 while (1)
@@ -54,8 +52,7 @@ while (1)
    // ----> If the frame is valid we can display it
    if(frame.data!=nullptr)
    {
-#ifdef TEST_FPS
-      if(lastFrameTs!=0)
+      if(lastFrameTs!=0 && false)
       {
          // ----> System time
          double now = static_cast<double>(getSteadyTimestamp())/1e9;
@@ -70,16 +67,22 @@ while (1)
          // <---- Frame time
       }
       lastFrameTs = frame.timestamp;
-#endif
 
       // ----> Conversion from YUV 4:2:2 to BGR for visualization
       cv::Mat frameYUV = cv::Mat( frame.height, frame.width, CV_8UC2, frame.data );
       cv::Mat frameBGR;
       cv::cvtColor(frameYUV,frameBGR,cv::COLOR_YUV2BGR_YUYV);
+
+      cv::Mat left = frameBGR(cv::Rect(0,0,frameBGR.cols/2, frameBGR.rows));
+      cv::Mat right = frameBGR(cv::Rect(frameBGR.cols/2,0,frameBGR.cols/2, frameBGR.rows));
+      // cv::Mat right = frameBGR(cv::Rect(0,1280,720,2560));
       // <---- Conversion from YUV 4:2:2 to BGR for visualization
 
+      printf("Resolution: (%d, %d)\n", frameBGR.cols, frameBGR.rows);
+
       // Show frame
-      cv::imshow( "Stream RGB", frameBGR );
+      cv::imshow( "Left RGB", left );
+      cv::imshow( "Right RGB", right );
    }
    // <---- If the frame is valid we can display it
 

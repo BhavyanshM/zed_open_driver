@@ -11,6 +11,10 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
+catkin_package(
+  CATKIN_DEPENDS roscpp rospy std_msgs
+)
+
 find_package( OpenCV REQUIRED )
 
 message("* Video module available")
@@ -27,9 +31,7 @@ set(DEP_LIBS ${DEP_LIBS}
      )
 
 
-catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs
-)
+
 
 include_directories(
     include
