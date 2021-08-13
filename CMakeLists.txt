@@ -9,10 +9,12 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  image_transport
+  cv_bridge
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs image_transport cv_bridge
 )
 
 find_package( OpenCV REQUIRED )
@@ -30,9 +32,6 @@ set(DEP_LIBS ${DEP_LIBS}
      ${LibUSB_LIBRARIES}
      )
 
-
-
-
 include_directories(
     include
     ${OpenCV_INCLUDE_DIRS}
@@ -44,6 +43,6 @@ add_executable(${PROJECT_NAME}_node src/zed_open_driver_node.cpp src/zed_open_dr
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
-        zed_open_capture
+  zed_open_capture
 )
 

@@ -5,94 +5,79 @@
 #include <cstdio>
 #include "videocapture.hpp"
 
-
 #include <iostream>
 #include <iomanip>
 
+#include "ros/ros.h"
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-class ZedOpenCapture{
-
-};
-
-
 int main(int argc, char *argv[])
 {
-   // ----> Create Video Capture
+   const bool DISPLAY = false;
+
+   ros::init(argc, argv, "zed_open");
+   ros::NodeHandle nh;
+
+   image_transport::ImageTransport transport(nh);
+   image_transport::Publisher leftImagePublisher = transport.advertise("/zed/color/left/image_raw", 1);
+   image_transport::Publisher rightImagePublisher = transport.advertise("/zed/color/right/image_raw", 1);
+
+   ros::Rate rate(30); // FPS
+
    sl_oc::video::VideoParams params;
    params.res = sl_oc::video::RESOLUTION::HD720;
    params.fps = sl_oc::video::FPS::FPS_60;
 
    sl_oc::video::VideoCapture cap(params);
-   if( !cap.initializeVideo() )
+   if (!cap.initializeVideo())
    {
       std::cerr << "Cannot open camera video capture" << std::endl;
       std::cerr << "See verbosity level for more details." << std::endl;
-
       return EXIT_FAILURE;
    }
    std::cout << "Connected to camera sn: " << cap.getSerialNumber() << std::endl;
-   // <---- Create Video Capture
 
-
-
-// Timestamp to check FPS
-double lastTime = static_cast<double>(getSteadyTimestamp())/1e9;
-// Frame timestamp to check FPS
-uint64_t lastFrameTs = 0;
-
-// Infinite video grabbing loop
-while (1)
-{
-   // Get last available frame
-   const sl_oc::video::Frame frame = cap.getLastFrame();
-
-   // ----> If the frame is valid we can display it
-   if(frame.data!=nullptr)
+   int count = 0;
+   while (ros::ok())
    {
-      if(lastFrameTs!=0 && false)
+      const sl_oc::video::Frame frame = cap.getLastFrame();
+      if (frame.data != nullptr)
       {
-         // ----> System time
-         double now = static_cast<double>(getSteadyTimestamp())/1e9;
-         double elapsed_sec = now - lastTime;
-         lastTime = now;
-         std::cout << "[System] Frame period: " << elapsed_sec << "sec - Freq: " << 1./elapsed_sec << " Hz" << std::endl;
-         // <---- System time
+         cv::Mat frameYUV = cv::Mat(frame.height, frame.width, CV_8UC2, frame.data);
+         cv::Mat frameBGR;
+         cv::cvtColor(frameYUV, frameBGR, cv::COLOR_YUV2BGR_YUYV);
 
-         // ----> Frame time
-         double frame_dT = static_cast<double>(frame.timestamp-lastFrameTs)/1e9;
-         std::cout << "[Camera] Frame period: " << frame_dT << "sec - Freq: " << 1./frame_dT << " Hz" << std::endl;
-         // <---- Frame time
+         cv::Mat left = frameBGR(cv::Rect(0, 0, frameBGR.cols / 2, frameBGR.rows));
+         cv::Mat right = frameBGR(cv::Rect(frameBGR.cols / 2, 0, frameBGR.cols / 2, frameBGR.rows));
+
+         sensor_msgs::ImagePtr leftMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", left).toImageMsg();
+         sensor_msgs::ImagePtr rightMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", right).toImageMsg();
+
+         leftImagePublisher.publish(leftMsg);
+         rightImagePublisher.publish(rightMsg);
+
+         if (DISPLAY)
+         {
+            cv::imshow("Left RGB", left);
+            cv::imshow("Right RGB", right);
+
+            int key = cv::waitKey(1);
+            if (key == 'q' || key == 'Q') // Quit
+               break;
+         }
       }
-      lastFrameTs = frame.timestamp;
 
-      // ----> Conversion from YUV 4:2:2 to BGR for visualization
-      cv::Mat frameYUV = cv::Mat( frame.height, frame.width, CV_8UC2, frame.data );
-      cv::Mat frameBGR;
-      cv::cvtColor(frameYUV,frameBGR,cv::COLOR_YUV2BGR_YUYV);
 
-      cv::Mat left = frameBGR(cv::Rect(0,0,frameBGR.cols/2, frameBGR.rows));
-      cv::Mat right = frameBGR(cv::Rect(frameBGR.cols/2,0,frameBGR.cols/2, frameBGR.rows));
-      // cv::Mat right = frameBGR(cv::Rect(0,1280,720,2560));
-      // <---- Conversion from YUV 4:2:2 to BGR for visualization
 
-      printf("Resolution: (%d, %d)\n", frameBGR.cols, frameBGR.rows);
-
-      // Show frame
-      cv::imshow( "Left RGB", left );
-      cv::imshow( "Right RGB", right );
+      ros::spinOnce();
+      rate.sleep();
+      ++count;
    }
-   // <---- If the frame is valid we can display it
 
-   // ----> Keyboard handling
-   int key = cv::waitKey( 5 );
-   if(key=='q' || key=='Q') // Quit
-      break;
-   // <---- Keyboard handling
-}
-
-return EXIT_SUCCESS;
+   return EXIT_SUCCESS;
 }
 
