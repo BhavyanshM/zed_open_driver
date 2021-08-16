@@ -1,0 +1,5 @@
+<launch>
+
+	<node pkg="zed_open_driver" type="zed_open_driver_node" name="zed_open_driver_node" output="screen" />
+
+</launch>
